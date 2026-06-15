@@ -53,6 +53,22 @@ HTTP client wrapper. Supports `get`, `post`, `put`, `patch`, `delete`, `head`, `
 
 All assertions return `self` for chaining.
 
+## Testing
+
+```bash
+# Run mocked tests (default)
+pytest
+
+# Run live API tests (hits real external APIs)
+pytest -m live
+
+# Run all tests
+pytest -m ""
+```
+
+Live tests are marked with `@pytest.mark.live` and disabled by default
+to avoid unnecessary network calls during development.
+
 ## License
 
 Apache 2.0
