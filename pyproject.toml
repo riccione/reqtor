@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "A simple API testing library with dot-notation syntax"
 readme = "README.md"
 requires-python = ">=3.13"
+authors = [ { name = "Riccione" } ]
 license = {text = "Apache-2.0"}
 classifiers = [
     "Programming Language :: Python :: 3",
@@ -37,3 +38,10 @@ addopts = "-m 'not live'"
 markers = [
     "live: tests that hit real external APIs (deselect with '-m \"not live\"')",
 ]
+
+[[tool.uv.index]]
+name = "reqtor"
+url = "https://test.pypi.org/simple/"
+publish-url = "https://test.pypi.org/legacy/"
+explicit = true
+
