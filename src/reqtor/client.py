@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import sys
+import time
+from collections.abc import Callable
 from typing import Any
 
 import requests
+from requests.exceptions import ConnectionError
 
 from reqtor.response import Response
 
@@ -18,10 +22,18 @@ class API:
         token: str | None = None,
         auth: tuple[str, str] | None = None,
         timeout: float = 30.0,
+        retries: int = 0,
+        backoff_factor: float = 0.5,
+        hooks: dict[str, Callable[..., Any]] | None = None,
+        debug: bool = False,
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._session = requests.Session()
         self._timeout = timeout
+        self._retries = retries
+        self._backoff_factor = backoff_factor
+        self._hooks = hooks or {}
+        self._debug = debug
 
         if headers:
             self._session.headers.update(headers)
@@ -55,17 +67,62 @@ class API:
         **kwargs: Any,
     ) -> Response:
         """Send a request and return a wrapped Response."""
-        resp = self._session.request(
-            method,
-            self._url(path),
-            json=json,
-            data=data,
-            headers=headers,
-            params=params,
-            timeout=self._timeout,
+        url = self._url(path)
+        kwargs.setdefault("timeout", self._timeout)
+
+        request_kwargs: dict[str, Any] = {
+            "method": method,
+            "url": url,
+            "json": json,
+            "data": data,
+            "headers": headers,
+            "params": params,
             **kwargs,
-        )
-        return Response(resp)
+        }
+
+        if "before" in self._hooks:
+            self._hooks["before"](request_kwargs)
+
+        last_exc: Exception | None = None
+        for attempt in range(self._retries + 1):
+            try:
+                start = time.monotonic()
+                resp = self._session.request(**request_kwargs)
+                elapsed = time.monotonic() - start
+
+                if self._debug:
+                    print(
+                        f"[reqtor] {method} {url} "
+                        f"-> {resp.status_code} "
+                        f"({elapsed:.3f}s)",
+                        file=sys.stderr,
+                    )
+
+                if (
+                    self._retries > 0
+                    and resp.status_code >= 500
+                    and attempt < self._retries
+                ):
+                    wait = self._backoff_factor * (2**attempt)
+                    time.sleep(wait)
+                    continue
+
+                wrapped = Response(resp)
+
+                if "after" in self._hooks:
+                    self._hooks["after"](wrapped)
+
+                return wrapped
+
+            except ConnectionError as exc:
+                last_exc = exc
+                if attempt < self._retries:
+                    wait = self._backoff_factor * (2**attempt)
+                    time.sleep(wait)
+                    continue
+                raise
+
+        raise last_exc  # type: ignore[misc]
 
     def get(self, path: str, **kwargs: Any) -> Response:
         return self.request("GET", path, **kwargs)
