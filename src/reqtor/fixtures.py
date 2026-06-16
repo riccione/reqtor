@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-import pytest
-
 from reqtor.client import API
 
 
@@ -26,6 +24,7 @@ def api_fixture(
         def test_get_users(api):
             api.get("/users").expect(200)
     """
+    import pytest
 
     @pytest.fixture(scope=scope)
     def fixture(request: pytest.FixtureRequest) -> API:
