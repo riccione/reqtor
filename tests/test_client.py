@@ -108,3 +108,101 @@ class TestAPIMethods:
         api = API("https://example.com")
         resp = api.options("/get")
         assert resp.status_code == 200
+
+
+@responses.activate
+class TestAPIRetries:
+    def test_retries_on_500(self):
+        responses.add(
+            responses.GET,
+            "https://example.com/flaky",
+            status=500,
+        )
+        responses.add(
+            responses.GET,
+            "https://example.com/flaky",
+            json={"ok": True},
+            status=200,
+        )
+        api = API("https://example.com", retries=1, backoff_factor=0)
+        resp = api.get("/flaky")
+        assert resp.status_code == 200
+        assert len(responses.calls) == 2
+
+    def test_no_retry_on_400(self):
+        responses.add(responses.GET, "https://example.com/bad", status=400)
+        api = API("https://example.com", retries=3, backoff_factor=0)
+        resp = api.get("/bad")
+        assert resp.status_code == 400
+        assert len(responses.calls) == 1
+
+    def test_retries_exhausted(self):
+        for _ in range(4):
+            responses.add(
+                responses.GET,
+                "https://example.com/fail",
+                status=500,
+            )
+        api = API("https://example.com", retries=2, backoff_factor=0)
+        resp = api.get("/fail")
+        assert resp.status_code == 500
+        assert len(responses.calls) == 3
+
+
+class TestAPIHooks:
+    @responses.activate
+    def test_before_hook(self):
+        captured = {}
+
+        def before(kwargs):
+            captured.update(kwargs)
+
+        responses.add(
+            responses.GET,
+            "https://example.com/data",
+            json={},
+            status=200,
+        )
+        api = API(
+            "https://example.com",
+            hooks={"before": before},
+        )
+        api.get("/data")
+        assert captured["method"] == "GET"
+        assert "/data" in captured["url"]
+
+    @responses.activate
+    def test_after_hook(self):
+        captured = {}
+
+        def after(resp):
+            captured["status"] = resp.status_code
+
+        responses.add(
+            responses.GET,
+            "https://example.com/data",
+            json={},
+            status=201,
+        )
+        api = API(
+            "https://example.com",
+            hooks={"after": after},
+        )
+        api.get("/data")
+        assert captured["status"] == 201
+
+
+class TestAPIDebug:
+    @responses.activate
+    def test_debug_prints_to_stderr(self, capsys):
+        responses.add(
+            responses.GET,
+            "https://example.com/data",
+            json={},
+            status=200,
+        )
+        api = API("https://example.com", debug=True)
+        api.get("/data")
+        captured = capsys.readouterr()
+        assert "[reqtor]" in captured.err
+        assert "200" in captured.err

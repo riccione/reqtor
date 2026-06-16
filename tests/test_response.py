@@ -150,3 +150,128 @@ class TestFluentChaining:
             .expect_header("X-Test", "yes")
         )
         assert result is resp
+
+
+class TestExpectOk:
+    def test_expect_ok_passes(self):
+        for status in (200, 201, 204, 299):
+            resp = _make_response(status)
+            resp.expect_ok()
+
+    def test_expect_ok_fails(self):
+        resp = _make_response(404)
+        with pytest.raises(AssertionError, match="Expected 2xx"):
+            resp.expect_ok()
+
+
+class TestExpectJsonPath:
+    def test_nested_path(self):
+        resp = _make_response(
+            200, json_data={"user": {"name": "John", "age": 30}}
+        )
+        resp.expect_json({"user.name": "John"})
+
+    def test_deeply_nested_path(self):
+        resp = _make_response(
+            200,
+            json_data={"a": {"b": {"c": "deep"}}},
+        )
+        resp.expect_json({"a.b.c": "deep"})
+
+    def test_nested_path_wrong_value(self):
+        resp = _make_response(200, json_data={"user": {"name": "John"}})
+        with pytest.raises(
+            AssertionError, match="expected 'Jane', got 'John'"
+        ):
+            resp.expect_json({"user.name": "Jane"})
+
+    def test_nested_path_missing(self):
+        resp = _make_response(200, json_data={"user": {"name": "John"}})
+        with pytest.raises(AssertionError, match="Missing key"):
+            resp.expect_json({"user.email": "x"})
+
+    def test_json_contains_nested_path(self):
+        resp = _make_response(200, json_data={"user": {"name": "John"}})
+        resp.expect_json_contains("user.name")
+
+    def test_json_contains_nested_path_missing(self):
+        resp = _make_response(200, json_data={"user": {"name": "John"}})
+        with pytest.raises(AssertionError, match="Missing key"):
+            resp.expect_json_contains("user.email")
+
+
+class TestExpectJsonLength:
+    def test_expect_json_length_passes(self):
+        resp = _make_response(200, json_data={"items": [1, 2, 3]})
+        resp.expect_json_length("items", 3)
+
+    def test_expect_json_length_wrong(self):
+        resp = _make_response(200, json_data={"items": [1, 2]})
+        with pytest.raises(AssertionError, match="expected length 3, got 2"):
+            resp.expect_json_length("items", 3)
+
+    def test_expect_json_length_not_list(self):
+        resp = _make_response(200, json_data={"items": "not"})
+        with pytest.raises(AssertionError, match="expected list"):
+            resp.expect_json_length("items", 1)
+
+
+class TestExpectJsonType:
+    def test_expect_json_type_passes(self):
+        resp = _make_response(200, json_data={"name": "John", "age": 30})
+        resp.expect_json_type("name", str)
+        resp.expect_json_type("age", int)
+
+    def test_expect_json_type_wrong(self):
+        resp = _make_response(200, json_data={"name": "John"})
+        with pytest.raises(AssertionError, match="expected int.*got str"):
+            resp.expect_json_type("name", int)
+
+
+class TestExpectNoHeader:
+    def test_expect_no_header_passes(self):
+        resp = _make_response(200)
+        resp.expect_no_header("X-Missing")
+
+    def test_expect_no_header_fails(self):
+        resp = _make_response(200, headers={"X-Exists": "yes"})
+        with pytest.raises(AssertionError, match="Unexpected header"):
+            resp.expect_no_header("X-Exists")
+
+
+class TestExpectBodyContains:
+    def test_expect_body_contains_passes(self):
+        resp = _make_response(200)
+        resp.raw._content = b"hello world"
+        resp.expect_body_contains("world")
+
+    def test_expect_body_contains_fails(self):
+        resp = _make_response(200)
+        resp.raw._content = b"hello"
+        with pytest.raises(AssertionError, match="Expected body to contain"):
+            resp.expect_body_contains("world")
+
+
+class TestExpectBodyMatches:
+    def test_expect_body_matches_passes(self):
+        resp = _make_response(200)
+        resp.raw._content = b"error: 42 not found"
+        resp.expect_body_matches(r"\d+")
+
+    def test_expect_body_matches_fails(self):
+        resp = _make_response(200)
+        resp.raw._content = b"no numbers here"
+        with pytest.raises(AssertionError, match="Expected body to match"):
+            resp.expect_body_matches(r"\d+")
+
+
+class TestExpectLatency:
+    def test_expect_latency_passes(self):
+        resp = _make_response(200)
+        resp.expect_latency(10.0)
+
+    def test_expect_latency_fails(self):
+        resp = _make_response(200)
+        resp._raw.elapsed = __import__("datetime").timedelta(seconds=5.0)
+        with pytest.raises(AssertionError, match="Expected latency"):
+            resp.expect_latency(1.0)
