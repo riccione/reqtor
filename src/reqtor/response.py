@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import re
-from datetime import timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import requests
+
+if TYPE_CHECKING:
+    from datetime import timedelta
 
 
 def _resolve_path(data: Any, path: str) -> Any:

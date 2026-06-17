@@ -1,8 +1,11 @@
 from __future__ import annotations
 
-from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from reqtor.client import API
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 def api_fixture(

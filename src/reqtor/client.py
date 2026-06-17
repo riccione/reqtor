@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import sys
 import time
-from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import requests
-from requests.exceptions import ConnectionError
 
 from reqtor.response import Response
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 class API:
@@ -131,7 +132,7 @@ class API:
 
                 return wrapped
 
-            except ConnectionError as exc:
+            except requests.exceptions.ConnectionError as exc:
                 last_exc = exc
                 if attempt < self._retries:
                     wait = self._backoff_factor * (2**attempt)
