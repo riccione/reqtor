@@ -6,3 +6,16 @@ from reqtor.response import Response
 
 __all__ = ["API", "Response", "api_fixture"]
 __version__ = "0.1.0"
+
+
+def __getattr__(name: str) -> object:
+    """Lazy import for async classes (requires httpx)."""
+    if name == "AsyncAPI":
+        from reqtor.async_client import AsyncAPI
+
+        return AsyncAPI
+    if name == "AsyncResponse":
+        from reqtor.async_response import AsyncResponse
+
+        return AsyncResponse
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
