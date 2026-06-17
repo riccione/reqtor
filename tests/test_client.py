@@ -206,3 +206,65 @@ class TestAPIDebug:
         captured = capsys.readouterr()
         assert "[reqtor]" in captured.err
         assert "200" in captured.err
+
+
+class TestAPIAuth:
+    def test_session_has_digest_auth(self):
+        from requests.auth import HTTPDigestAuth
+
+        api = API("https://example.com", digest_auth=("user", "pass"))
+        assert isinstance(api.session.auth, HTTPDigestAuth)
+
+    def test_session_has_custom_auth_class(self):
+        from requests.auth import AuthBase
+
+        class CustomAuth(AuthBase):
+            def __call__(self, r):
+                r.headers["X-Custom-Auth"] = "token"
+                return r
+
+        custom = CustomAuth()
+        api = API("https://example.com", auth_class=custom)
+        assert api.session.auth is custom
+
+    @responses.activate
+    def test_api_key_in_params(self):
+        responses.add(
+            responses.GET,
+            "https://example.com/data",
+            json={},
+            status=200,
+        )
+        api = API("https://example.com", api_key="secret123")
+        api.get("/data")
+        assert "api_key=secret123" in responses.calls[0].request.url
+
+    @responses.activate
+    def test_api_key_custom_param_name(self):
+        responses.add(
+            responses.GET,
+            "https://example.com/data",
+            json={},
+            status=200,
+        )
+        api = API(
+            "https://example.com",
+            api_key="key123",
+            api_key_param="access_token",
+        )
+        api.get("/data")
+        assert "access_token=key123" in responses.calls[0].request.url
+
+    @responses.activate
+    def test_api_key_with_existing_params(self):
+        responses.add(
+            responses.GET,
+            "https://example.com/data",
+            json={},
+            status=200,
+        )
+        api = API("https://example.com", api_key="secret123")
+        api.get("/data", params={"page": "1"})
+        url = responses.calls[0].request.url
+        assert "api_key=secret123" in url
+        assert "page=1" in url

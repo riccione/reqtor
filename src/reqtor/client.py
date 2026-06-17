@@ -21,6 +21,10 @@ class API:
         headers: dict[str, str] | None = None,
         token: str | None = None,
         auth: tuple[str, str] | None = None,
+        digest_auth: tuple[str, str] | None = None,
+        auth_class: requests.auth.AuthBase | None = None,
+        api_key: str | None = None,
+        api_key_param: str = "api_key",
         timeout: float = 30.0,
         retries: int = 0,
         backoff_factor: float = 0.5,
@@ -34,6 +38,8 @@ class API:
         self._backoff_factor = backoff_factor
         self._hooks = hooks or {}
         self._debug = debug
+        self._api_key = api_key
+        self._api_key_param = api_key_param
 
         if headers:
             self._session.headers.update(headers)
@@ -41,7 +47,13 @@ class API:
         if token:
             self._session.headers["Authorization"] = f"Bearer {token}"
 
-        if auth:
+        if auth_class:
+            self._session.auth = auth_class
+        elif digest_auth:
+            from requests.auth import HTTPDigestAuth
+
+            self._session.auth = HTTPDigestAuth(*digest_auth)
+        elif auth:
             self._session.auth = auth
 
     @property
@@ -69,6 +81,11 @@ class API:
         """Send a request and return a wrapped Response."""
         url = self._url(path)
         kwargs.setdefault("timeout", self._timeout)
+
+        if self._api_key:
+            if params is None:
+                params = {}
+            params[self._api_key_param] = self._api_key
 
         request_kwargs: dict[str, Any] = {
             "method": method,
