@@ -48,6 +48,10 @@ HTTP client wrapper. Supports `get`, `post`, `put`, `patch`, `delete`, `head`, `
 - `headers` — custom headers dict
 - `token` — Bearer token
 - `auth` — `(user, pass)` tuple for basic auth
+- `digest_auth` — `(user, pass)` tuple for digest auth
+- `auth_class` — any `requests.auth.AuthBase` subclass
+- `api_key` — API key value to add to query params
+- `api_key_param` — query param name for API key (default: `"api_key"`)
 - `timeout` — request timeout in seconds (default 30)
 - `retries` — number of retries on 5xx/connection errors (default 0)
 - `backoff_factor` — exponential backoff multiplier (default 0.5)
@@ -55,6 +59,26 @@ HTTP client wrapper. Supports `get`, `post`, `put`, `patch`, `delete`, `head`, `
 - `debug` — print request/response info to stderr
 
 ```python
+# Bearer token
+api = API("https://api.example.com", token="your-token")
+
+# Basic auth
+api = API("https://api.example.com", auth=("user", "pass"))
+
+# Digest auth
+api = API("https://api.example.com", digest_auth=("user", "pass"))
+
+# API key in query params (?api_key=xxx)
+api = API("https://api.example.com", api_key="secret-key")
+
+# Custom param name (?access_token=xxx)
+api = API("https://api.example.com", api_key="token", api_key_param="access_token")
+
+# Custom auth class
+from requests.auth import HTTPDigestAuth
+api = API("https://api.example.com", auth_class=HTTPDigestAuth("u", "p"))
+
+# Full example with retries and hooks
 api = API(
     "https://api.example.com",
     token="xxx",
