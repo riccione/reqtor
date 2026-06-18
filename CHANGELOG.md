@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Configurable exception retry via `retry_on_exception` parameter:
   - Pass a callable `(Exception) -> bool` to control which exceptions trigger retries
   - Default behavior unchanged: retries on `ConnectionError`/`ConnectError`
+- Request history tracking via `history` property on `API` and `AsyncAPI`:
+  - Stores all responses recorded during the session
+  - Returns a copy to prevent external mutation
+  - Useful for debugging failed requests
 
 ## [0.2.0] - 2026-06-18
 

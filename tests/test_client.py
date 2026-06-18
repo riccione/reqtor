@@ -458,3 +458,85 @@ class TestAPIAuth:
         url = responses.calls[0].request.url
         assert "api_key=secret123" in url
         assert "page=1" in url
+
+
+class TestAPIHistory:
+    @responses.activate
+    def test_history_starts_empty(self):
+        api = API("https://example.com")
+        assert api.history == []
+
+    @responses.activate
+    def test_history_records_single_request(self):
+        responses.add(
+            responses.GET,
+            "https://example.com/data",
+            json={"key": "value"},
+            status=200,
+        )
+        api = API("https://example.com")
+        api.get("/data")
+        assert len(api.history) == 1
+        assert api.history[0].status_code == 200
+
+    @responses.activate
+    def test_history_records_multiple_requests(self):
+        responses.add(
+            responses.GET,
+            "https://example.com/a",
+            json={},
+            status=200,
+        )
+        responses.add(
+            responses.POST,
+            "https://example.com/b",
+            json={},
+            status=201,
+        )
+        responses.add(
+            responses.GET,
+            "https://example.com/c",
+            json={},
+            status=404,
+        )
+        api = API("https://example.com")
+        api.get("/a")
+        api.post("/b")
+        api.get("/c")
+        assert len(api.history) == 3
+        assert api.history[0].status_code == 200
+        assert api.history[1].status_code == 201
+        assert api.history[2].status_code == 404
+
+    @responses.activate
+    def test_history_returns_copy(self):
+        responses.add(
+            responses.GET,
+            "https://example.com/data",
+            json={},
+            status=200,
+        )
+        api = API("https://example.com")
+        api.get("/data")
+        h = api.history
+        h.clear()
+        assert len(api.history) == 1
+
+    @responses.activate
+    def test_history_with_retries(self):
+        responses.add(
+            responses.GET,
+            "https://example.com/flaky",
+            status=500,
+        )
+        responses.add(
+            responses.GET,
+            "https://example.com/flaky",
+            json={"ok": True},
+            status=200,
+        )
+        api = API("https://example.com", retries=1, backoff_factor=0)
+        resp = api.get("/flaky")
+        assert resp.status_code == 200
+        assert len(api.history) == 1
+        assert api.history[0].status_code == 200
