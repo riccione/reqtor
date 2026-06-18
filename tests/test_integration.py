@@ -152,3 +152,112 @@ class TestApiFixture:
         # Call the underlying factory directly via __wrapped__
         api = fixture_fn.__wrapped__()
         api.get("/health").expect(200).expect_json({"status": "ok"})
+
+    def test_api_fixture_requires_base_url(self):
+        import pytest
+
+        with pytest.raises(ValueError, match="base_url is required"):
+            fixture_fn = api_fixture()
+            fixture_fn.__wrapped__()
+
+    def test_api_fixture_env_prefix(self, monkeypatch):
+        monkeypatch.setenv("TEST_API_BASE_URL", "https://api.test.com")
+        monkeypatch.setenv("TEST_API_TOKEN", "test-token")
+
+        fixture_fn = api_fixture(env_prefix="TEST_API_")
+        api = fixture_fn.__wrapped__()
+
+        assert api.base_url == "https://api.test.com"
+        assert api.session.headers["Authorization"] == "Bearer test-token"
+
+    def test_api_fixture_env_prefix_missing_url(self, monkeypatch):
+        import pytest
+
+        monkeypatch.delenv("MISSING_URL", raising=False)
+
+        fixture_fn = api_fixture(env_prefix="MISSING_")
+        with pytest.raises(ValueError, match="MISSING_BASE_URL is not set"):
+            fixture_fn.__wrapped__()
+
+    def test_api_fixture_explicit_env_vars(self, monkeypatch):
+        monkeypatch.setenv("MY_API_URL", "https://myapi.com")
+        monkeypatch.setenv("MY_API_KEY", "my-key")
+
+        fixture_fn = api_fixture(
+            base_url_env="MY_API_URL",
+            token_env="MY_API_KEY",
+        )
+        api = fixture_fn.__wrapped__()
+
+        assert api.base_url == "https://myapi.com"
+        assert api.session.headers["Authorization"] == "Bearer my-key"
+
+    def test_api_fixture_explicit_env_missing(self, monkeypatch):
+        import pytest
+
+        monkeypatch.delenv("NO_SUCH_URL", raising=False)
+
+        fixture_fn = api_fixture(base_url_env="NO_SUCH_URL")
+        with pytest.raises(ValueError, match="NO_SUCH_URL is not set"):
+            fixture_fn.__wrapped__()
+
+    def test_api_fixture_auth_from_env(self, monkeypatch):
+        monkeypatch.setenv("AUTH_USER", "admin")
+        monkeypatch.setenv("AUTH_PASS", "secret")
+
+        fixture_fn = api_fixture(
+            base_url="https://api.example.com",
+            auth_user_env="AUTH_USER",
+            auth_pass_env="AUTH_PASS",
+        )
+        api = fixture_fn.__wrapped__()
+
+        assert api.session.auth == ("admin", "secret")
+
+    def test_api_fixture_auth_from_prefix(self, monkeypatch):
+        monkeypatch.setenv("STAGING_BASE_URL", "https://staging.example.com")
+        monkeypatch.setenv("STAGING_AUTH_USER", "staging-user")
+        monkeypatch.setenv("STAGING_AUTH_PASS", "staging-pass")
+
+        fixture_fn = api_fixture(env_prefix="STAGING_")
+        api = fixture_fn.__wrapped__()
+
+        assert api.base_url == "https://staging.example.com"
+        assert api.session.auth == ("staging-user", "staging-pass")
+
+    def test_api_fixture_timeout_from_env(self, monkeypatch):
+        monkeypatch.setenv("CUSTOM_TIMEOUT", "60")
+
+        fixture_fn = api_fixture(
+            base_url="https://api.example.com",
+            timeout_env="CUSTOM_TIMEOUT",
+        )
+        api = fixture_fn.__wrapped__()
+
+        assert api._timeout == 60.0
+
+    def test_api_fixture_headers_from_env(self, monkeypatch):
+        import json
+
+        monkeypatch.setenv(
+            "CUSTOM_HEADERS", json.dumps({"X-Env-Header": "from-env"})
+        )
+
+        fixture_fn = api_fixture(
+            base_url="https://api.example.com",
+            env_prefix="CUSTOM_",
+        )
+        api = fixture_fn.__wrapped__()
+
+        assert api.session.headers["X-Env-Header"] == "from-env"
+
+    def test_api_fixture_explicit_overrides_env(self, monkeypatch):
+        monkeypatch.setenv("ENV_URL", "https://env.example.com")
+
+        fixture_fn = api_fixture(
+            base_url="https://explicit.example.com",
+            env_prefix="ENV_",
+        )
+        api = fixture_fn.__wrapped__()
+
+        assert api.base_url == "https://explicit.example.com"
