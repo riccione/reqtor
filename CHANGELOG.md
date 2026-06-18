@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Configurable retry conditions via `retry_on` parameter:
+  - Pass a set/list of status codes to retry on (e.g., `retry_on={429, 503}`)
+  - Pass a callable `(int) -> bool` for custom retry logic
+  - Default behavior unchanged: retries on 5xx and connection errors
+- Configurable exception retry via `retry_on_exception` parameter:
+  - Pass a callable `(Exception) -> bool` to control which exceptions trigger retries
+  - Default behavior unchanged: retries on `ConnectionError`/`ConnectError`
+
 ## [0.2.0] - 2026-06-18
 
 ### Added

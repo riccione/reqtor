@@ -58,6 +58,8 @@ HTTP client wrapper. Supports `get`, `post`, `put`, `patch`, `delete`, `head`, `
 - `timeout` — request timeout in seconds (default 30)
 - `retries` — number of retries on 5xx/connection errors (default 0)
 - `backoff_factor` — exponential backoff multiplier (default 0.5)
+- `retry_on` — status codes to retry on: set of ints or callable `(int) -> bool`
+- `retry_on_exception` — callable `(Exception) -> bool` to control exception retries
 - `hooks` — dict with `"before"` and/or `"after"` callables
 - `debug` — print request/response info to stderr
 
@@ -92,6 +94,28 @@ api = API(
         "after": lambda resp: print(f"Got {resp.status_code}"),
     },
     debug=True,
+)
+
+# Retry on specific status codes (e.g., rate limiting)
+api = API(
+    "https://api.example.com",
+    retries=3,
+    backoff_factor=0.5,
+    retry_on={429, 503},
+)
+
+# Retry with custom logic (e.g., retry on any 5xx or 408 Timeout)
+api = API(
+    "https://api.example.com",
+    retries=3,
+    retry_on=lambda code: code >= 500 or code == 408,
+)
+
+# Custom exception retry logic
+api = API(
+    "https://api.example.com",
+    retries=3,
+    retry_on_exception=lambda exc: "timeout" in str(exc).lower(),
 )
 ```
 
