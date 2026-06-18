@@ -416,3 +416,72 @@ class TestAsyncLazyImport:
 
         with pytest.raises(AttributeError):
             _ = reqtor.NonExistent
+
+
+class TestAsyncAPIHistory:
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_history_starts_empty(self):
+        async with AsyncAPI("https://example.com") as api:
+            assert api.history == []
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_history_records_single_request(self):
+        respx.get("https://example.com/data").mock(
+            return_value=httpx.Response(200, json={"key": "value"})
+        )
+        async with AsyncAPI("https://example.com") as api:
+            await api.get("/data")
+            assert len(api.history) == 1
+            assert api.history[0].status_code == 200
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_history_records_multiple_requests(self):
+        respx.get("https://example.com/a").mock(
+            return_value=httpx.Response(200, json={})
+        )
+        respx.post("https://example.com/b").mock(
+            return_value=httpx.Response(201, json={})
+        )
+        respx.get("https://example.com/c").mock(
+            return_value=httpx.Response(404, json={})
+        )
+        async with AsyncAPI("https://example.com") as api:
+            await api.get("/a")
+            await api.post("/b")
+            await api.get("/c")
+            assert len(api.history) == 3
+            assert api.history[0].status_code == 200
+            assert api.history[1].status_code == 201
+            assert api.history[2].status_code == 404
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_history_returns_copy(self):
+        respx.get("https://example.com/data").mock(
+            return_value=httpx.Response(200, json={})
+        )
+        async with AsyncAPI("https://example.com") as api:
+            await api.get("/data")
+            h = api.history
+            h.clear()
+            assert len(api.history) == 1
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_history_with_retries(self):
+        respx.get("https://example.com/flaky").mock(
+            side_effect=[
+                httpx.Response(500),
+                httpx.Response(200, json={"ok": True}),
+            ]
+        )
+        async with AsyncAPI(
+            "https://example.com", retries=1, backoff_factor=0
+        ) as api:
+            resp = await api.get("/flaky")
+            assert resp.status_code == 200
+            assert len(api.history) == 1
+            assert api.history[0].status_code == 200

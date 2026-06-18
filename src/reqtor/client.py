@@ -71,6 +71,7 @@ class API:
         self._debug = debug
         self._api_key = api_key
         self._api_key_param = api_key_param
+        self._history: list[Response] = []
 
         if headers:
             self._session.headers.update(headers)
@@ -94,6 +95,11 @@ class API:
     @property
     def session(self) -> requests.Session:
         return self._session
+
+    @property
+    def history(self) -> list[Response]:
+        """Return all responses recorded during this session."""
+        return list(self._history)
 
     def _url(self, path: str) -> str:
         return f"{self._base_url}/{path.lstrip('/')}"
@@ -156,6 +162,7 @@ class API:
                     continue
 
                 wrapped = Response(resp)
+                self._history.append(wrapped)
 
                 if "after" in self._hooks:
                     self._hooks["after"](wrapped)

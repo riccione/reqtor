@@ -48,6 +48,7 @@ class AsyncAPI:
         self._debug = debug
         self._api_key = api_key
         self._api_key_param = api_key_param
+        self._history: list[AsyncResponse] = []
 
         merged_headers = dict(headers) if headers else {}
         if token:
@@ -67,6 +68,11 @@ class AsyncAPI:
     @property
     def client(self) -> httpx.AsyncClient:
         return self._client
+
+    @property
+    def history(self) -> list[AsyncResponse]:
+        """Return all responses recorded during this session."""
+        return list(self._history)
 
     async def close(self) -> None:
         """Close the underlying HTTP client."""
@@ -140,6 +146,7 @@ class AsyncAPI:
                     continue
 
                 wrapped = AsyncResponse(resp)
+                self._history.append(wrapped)
 
                 if "after" in self._hooks:
                     self._hooks["after"](wrapped)

@@ -172,6 +172,29 @@ api.get("/users/1").expect(200).expect_json({
 )
 ```
 
+## Request History
+
+Every request made through `API` or `AsyncAPI` is recorded in the `history` property:
+
+```python
+api = API("https://api.example.com", retries=2)
+api.get("/users")
+api.post("/users", json={"name": "Jane"})
+api.get("/users/1")
+
+# Inspect all recorded responses
+for resp in api.history:
+    print(f"{resp.status_code} - {resp.elapsed.total_seconds():.3f}s")
+
+# Check the last request
+api.history[-1].expect(200)
+
+# Count failed requests
+failed = [r for r in api.history if not r.ok]
+```
+
+`history` returns a copy — clearing it won't affect the internal log.
+
 ## Testing
 
 ```bash
