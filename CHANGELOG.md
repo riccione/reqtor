@@ -20,6 +20,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Stores all responses recorded during the session
   - Returns a copy to prevent external mutation
   - Useful for debugging failed requests
+- Multi-environment fixtures via `api_fixture`:
+  - `env_prefix` parameter reads from `{PREFIX}BASE_URL`, `{PREFIX}TOKEN`, etc.
+  - Explicit env var parameters: `base_url_env`, `token_env`, `auth_user_env`, `auth_pass_env`
+  - Supports JSON-encoded headers via `{PREFIX}HEADERS`
+  - Explicit values always override environment variables
 
 ## [0.2.0] - 2026-06-18
 

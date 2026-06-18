@@ -40,6 +40,48 @@ def test_get_users(api):
     api.get("/users").expect(200).expect_json_contains("users")
 ```
 
+### Multi-environment fixtures
+
+Read configuration from environment variables — no code changes per environment:
+
+```python
+# conftest.py
+from reqtor import api_fixture
+
+# Reads from REQTOR_BASE_URL, REQTOR_TOKEN, etc.
+api = api_fixture(env_prefix="REQTOR_")
+```
+
+```bash
+# .env.dev
+export REQTOR_BASE_URL="https://dev.api.example.com"
+export REQTOR_TOKEN="dev-token"
+
+# .env.staging
+export REQTOR_BASE_URL="https://staging.api.example.com"
+export REQTOR_TOKEN="staging-token"
+export REQTOR_AUTH_USER="staging-user"
+export REQTOR_AUTH_PASS="staging-pass"
+```
+
+Or use explicit env var names:
+
+```python
+api = api_fixture(
+    base_url_env="MY_API_URL",
+    token_env="MY_API_TOKEN",
+    auth_user_env="MY_API_USER",
+    auth_pass_env="MY_API_PASS",
+)
+```
+
+Supported environment variables (with `env_prefix="REQTOR_"`):
+- `REQTOR_BASE_URL` — API base URL (required)
+- `REQTOR_TOKEN` — Bearer token
+- `REQTOR_AUTH_USER` / `REQTOR_AUTH_PASS` — Basic auth
+- `REQTOR_TIMEOUT` — Request timeout in seconds
+- `REQTOR_HEADERS` — JSON-encoded headers dict
+
 ## API Reference
 
 ### `API(base_url, **kwargs)`
