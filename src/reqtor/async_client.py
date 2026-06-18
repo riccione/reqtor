@@ -7,6 +7,12 @@ from typing import TYPE_CHECKING, Any
 import httpx
 
 from reqtor.async_response import AsyncResponse
+from reqtor.client import (
+    RetryOnException,
+    RetryOnStatus,
+    _should_retry_exception,
+    _should_retry_status,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -27,6 +33,8 @@ class AsyncAPI:
         timeout: float = 30.0,
         retries: int = 0,
         backoff_factor: float = 0.5,
+        retry_on: RetryOnStatus = None,
+        retry_on_exception: RetryOnException = None,
         hooks: dict[str, Callable[..., Any]] | None = None,
         debug: bool = False,
     ) -> None:
@@ -34,6 +42,8 @@ class AsyncAPI:
         self._timeout = timeout
         self._retries = retries
         self._backoff_factor = backoff_factor
+        self._retry_on = retry_on
+        self._retry_on_exception = retry_on_exception
         self._hooks = hooks or {}
         self._debug = debug
         self._api_key = api_key
@@ -120,7 +130,7 @@ class AsyncAPI:
 
                 if (
                     self._retries > 0
-                    and resp.status_code >= 500
+                    and _should_retry_status(resp.status_code, self._retry_on)
                     and attempt < self._retries
                 ):
                     import asyncio
@@ -138,7 +148,9 @@ class AsyncAPI:
 
             except httpx.ConnectError as exc:
                 last_exc = exc
-                if attempt < self._retries:
+                if attempt < self._retries and _should_retry_exception(
+                    exc, self._retry_on_exception
+                ):
                     import asyncio
 
                     wait = self._backoff_factor * (2**attempt)

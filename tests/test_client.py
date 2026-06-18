@@ -1,3 +1,4 @@
+import pytest
 import responses
 
 from reqtor import API
@@ -147,6 +148,195 @@ class TestAPIRetries:
         resp = api.get("/fail")
         assert resp.status_code == 500
         assert len(responses.calls) == 3
+
+
+@responses.activate
+class TestAPIRetryOnStatusCodes:
+    def test_retry_on_specific_status_codes(self):
+        responses.add(
+            responses.GET,
+            "https://example.com/rate-limited",
+            status=429,
+        )
+        responses.add(
+            responses.GET,
+            "https://example.com/rate-limited",
+            json={"ok": True},
+            status=200,
+        )
+        api = API(
+            "https://example.com",
+            retries=1,
+            backoff_factor=0,
+            retry_on={429},
+        )
+        resp = api.get("/rate-limited")
+        assert resp.status_code == 200
+        assert len(responses.calls) == 2
+
+    def test_retry_on_multiple_status_codes(self):
+        responses.add(
+            responses.GET,
+            "https://example.com/unavailable",
+            status=503,
+        )
+        responses.add(
+            responses.GET,
+            "https://example.com/unavailable",
+            json={"ok": True},
+            status=200,
+        )
+        api = API(
+            "https://example.com",
+            retries=1,
+            backoff_factor=0,
+            retry_on=[429, 503],
+        )
+        resp = api.get("/unavailable")
+        assert resp.status_code == 200
+        assert len(responses.calls) == 2
+
+    def test_no_retry_on_unlisted_status_code(self):
+        responses.add(
+            responses.GET,
+            "https://example.com/server-error",
+            status=500,
+        )
+        api = API(
+            "https://example.com",
+            retries=1,
+            backoff_factor=0,
+            retry_on={429, 503},
+        )
+        resp = api.get("/server-error")
+        assert resp.status_code == 500
+        assert len(responses.calls) == 1
+
+    def test_retry_on_callable(self):
+        responses.add(
+            responses.GET,
+            "https://example.com/transient",
+            status=502,
+        )
+        responses.add(
+            responses.GET,
+            "https://example.com/transient",
+            json={"ok": True},
+            status=200,
+        )
+        api = API(
+            "https://example.com",
+            retries=1,
+            backoff_factor=0,
+            retry_on=lambda code: code in (502, 503),
+        )
+        resp = api.get("/transient")
+        assert resp.status_code == 200
+        assert len(responses.calls) == 2
+
+    def test_callable_returns_false_no_retry(self):
+        responses.add(
+            responses.GET,
+            "https://example.com/forbidden",
+            status=403,
+        )
+        api = API(
+            "https://example.com",
+            retries=1,
+            backoff_factor=0,
+            retry_on=lambda code: code >= 500,
+        )
+        resp = api.get("/forbidden")
+        assert resp.status_code == 403
+        assert len(responses.calls) == 1
+
+    def test_default_retry_on_5xx_backward_compat(self):
+        responses.add(
+            responses.GET,
+            "https://example.com/server-error",
+            status=500,
+        )
+        responses.add(
+            responses.GET,
+            "https://example.com/server-error",
+            json={"ok": True},
+            status=200,
+        )
+        api = API("https://example.com", retries=1, backoff_factor=0)
+        resp = api.get("/server-error")
+        assert resp.status_code == 200
+        assert len(responses.calls) == 2
+
+
+class TestAPIRetryOnException:
+    def test_retry_on_exception_callable(self):
+        import requests.exceptions
+
+        call_count = 0
+
+        def should_retry(exc):
+            nonlocal call_count
+            call_count += 1
+            return isinstance(exc, requests.exceptions.ConnectionError)
+
+        api = API(
+            "https://example.com",
+            retries=2,
+            backoff_factor=0,
+            retry_on_exception=should_retry,
+        )
+        with pytest.raises(requests.exceptions.ConnectionError):
+            with responses.RequestsMock() as rsps:
+                rsps.add(
+                    responses.GET,
+                    "https://example.com/unreachable",
+                    body=requests.exceptions.ConnectionError(),
+                )
+                api.get("/unreachable")
+        assert call_count == 2
+
+    def test_exception_not_retryable(self):
+        import requests.exceptions
+
+        call_count = 0
+
+        def should_retry(exc):
+            nonlocal call_count
+            call_count += 1
+            return False
+
+        api = API(
+            "https://example.com",
+            retries=2,
+            backoff_factor=0,
+            retry_on_exception=should_retry,
+        )
+        with pytest.raises(requests.exceptions.ConnectionError):
+            with responses.RequestsMock() as rsps:
+                rsps.add(
+                    responses.GET,
+                    "https://example.com/unreachable",
+                    body=requests.exceptions.ConnectionError(),
+                )
+                api.get("/unreachable")
+        assert call_count == 1
+
+    def test_default_exception_retry_backward_compat(self):
+        import requests.exceptions
+
+        api = API(
+            "https://example.com",
+            retries=1,
+            backoff_factor=0,
+        )
+        with pytest.raises(requests.exceptions.ConnectionError):
+            with responses.RequestsMock() as rsps:
+                rsps.add(
+                    responses.GET,
+                    "https://example.com/unreachable",
+                    body=requests.exceptions.ConnectionError(),
+                )
+                api.get("/unreachable")
 
 
 class TestAPIHooks:

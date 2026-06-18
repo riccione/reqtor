@@ -2,14 +2,40 @@ from __future__ import annotations
 
 import sys
 import time
-from typing import TYPE_CHECKING, Any
+from collections.abc import Callable
+from typing import Any
 
 import requests
 
 from reqtor.response import Response
 
-if TYPE_CHECKING:
-    from collections.abc import Callable
+# Type for retry_on parameter: callable, collection of status codes, or None
+RetryOnStatus = (
+    Callable[[int], bool] | set[int] | list[int] | tuple[int, ...] | None
+)
+RetryOnException = Callable[[Exception], bool] | None
+
+
+def _should_retry_status(
+    status_code: int,
+    retry_on: RetryOnStatus,
+) -> bool:
+    """Check if we should retry based on status code."""
+    if retry_on is None:
+        return status_code >= 500
+    if callable(retry_on):
+        return retry_on(status_code)
+    return status_code in retry_on
+
+
+def _should_retry_exception(
+    exc: Exception,
+    retry_on_exc: RetryOnException,
+) -> bool:
+    """Check if we should retry based on exception type."""
+    if retry_on_exc is None:
+        return isinstance(exc, requests.exceptions.ConnectionError)
+    return retry_on_exc(exc)
 
 
 class API:
@@ -29,6 +55,8 @@ class API:
         timeout: float = 30.0,
         retries: int = 0,
         backoff_factor: float = 0.5,
+        retry_on: RetryOnStatus = None,
+        retry_on_exception: RetryOnException = None,
         hooks: dict[str, Callable[..., Any]] | None = None,
         debug: bool = False,
     ) -> None:
@@ -37,6 +65,8 @@ class API:
         self._timeout = timeout
         self._retries = retries
         self._backoff_factor = backoff_factor
+        self._retry_on = retry_on
+        self._retry_on_exception = retry_on_exception
         self._hooks = hooks or {}
         self._debug = debug
         self._api_key = api_key
@@ -118,7 +148,7 @@ class API:
 
                 if (
                     self._retries > 0
-                    and resp.status_code >= 500
+                    and _should_retry_status(resp.status_code, self._retry_on)
                     and attempt < self._retries
                 ):
                     wait = self._backoff_factor * (2**attempt)
@@ -134,7 +164,9 @@ class API:
 
             except requests.exceptions.ConnectionError as exc:
                 last_exc = exc
-                if attempt < self._retries:
+                if attempt < self._retries and _should_retry_exception(
+                    exc, self._retry_on_exception
+                ):
                     wait = self._backoff_factor * (2**attempt)
                     time.sleep(wait)
                     continue
