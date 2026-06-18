@@ -237,6 +237,35 @@ failed = [r for r in api.history if not r.ok]
 
 `history` returns a copy — clearing it won't affect the internal log.
 
+## Parametrized Test Helpers
+
+Reduce boilerplate when testing multiple endpoints, status codes, or HTTP methods:
+
+```python
+from reqtor import API, endpoints, statuses, http_methods, api_endpoints
+
+# Test multiple endpoints
+@endpoints("/users", "/posts", "/comments")
+def test_get_endpoints(api, path):
+    api.get(path).expect(200)
+
+# Test multiple status codes
+@statuses(200, 201, 204)
+def test_success_statuses(api, status):
+    api.get("/test").expect(status)
+
+# Test multiple HTTP methods
+@http_methods("GET", "POST", "PUT", "DELETE")
+def test_http_methods(api, method):
+    resp = getattr(api, method.lower())("/test")
+    resp.expect(200)
+
+# Test endpoint-status pairs
+@api_endpoints(("/users", 200), ("/posts", 200), ("/missing", 404))
+def test_endpoints(api, path, expected_status):
+    api.get(path).expect(expected_status)
+```
+
 ## Testing
 
 ```bash
