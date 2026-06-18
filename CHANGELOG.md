@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-06-18
+
+### Added
+
+- Async client (`AsyncAPI`) using httpx with context manager support
+- Async response assertions (`AsyncResponse`) with full fluent API
+- Async response `expect_json_contains()`, `expect_json_length()`, `expect_json_type()`
+- Async response `expect_header()`, `expect_no_header()`
+- Async response `expect_body()`, `expect_body_contains()`, `expect_body_matches()`
+- Async response `expect_latency()`
+- pytest-asyncio integration with `respx` for async mocking
+- Lazy async imports via `__getattr__` in `__init__.py`
+- 130 tests passing, 92.45% coverage
+
 ## [0.1.0] - 2026-06-17
 
 ### Added
@@ -61,6 +75,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Ruff linter/formatter configuration
 - Basic README
 
-[Unreleased]: https://github.com/riccione/reqtor/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/riccione/reqtor/releases/tag/v0.1.0
+[Unreleased]: https://github.com/riccione/reqtor/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/riccione/reqtor/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/riccione/reqtor/compare/v0.0.1...v0.1.0
 [0.0.1]: https://github.com/riccione/reqtor/releases/tag/v0.0.1

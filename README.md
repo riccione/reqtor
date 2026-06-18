@@ -6,6 +6,9 @@ A lightweight Python API testing library with fluent dot-notation assertions.
 
 ```bash
 uv add reqtor
+
+# For async support (httpx-based)
+uv add reqtor[async]
 ```
 
 ## Quick Start
@@ -160,6 +163,39 @@ pytest -m ""
 
 Live tests are marked with `@pytest.mark.live` and disabled by default
 to avoid unnecessary network calls during development.
+
+## Async Client
+
+For async frameworks (FastAPI, aiohttp), use `AsyncAPI`:
+
+```python
+import asyncio
+from reqtor import AsyncAPI
+
+async def main():
+    async with AsyncAPI("https://api.example.com", token="xxx") as api:
+        # Same fluent assertions as sync client
+        resp = await api.get("/users/1")
+        resp.expect(200).expect_json({"name": "John"})
+
+        # POST with JSON body
+        resp = await api.post("/users", json={"name": "Jane"})
+        resp.expect(201)
+
+asyncio.run(main())
+```
+
+### pytest with async client
+
+```python
+import pytest
+from reqtor import AsyncAPI
+
+@pytest.mark.asyncio
+async def test_get_users():
+    async with AsyncAPI("https://api.example.com") as api:
+        await api.get("/users").expect(200).expect_json_contains("users")
+```
 
 ## License
 
