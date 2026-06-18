@@ -2,9 +2,23 @@
 
 from reqtor.client import API
 from reqtor.fixtures import api_fixture
+from reqtor.parametrize import (
+    api_endpoints,
+    endpoints,
+    http_methods,
+    statuses,
+)
 from reqtor.response import Response
 
-__all__ = ["API", "Response", "api_fixture"]
+__all__ = [
+    "API",
+    "Response",
+    "api_fixture",
+    "api_endpoints",
+    "endpoints",
+    "http_methods",
+    "statuses",
+]
 __version__ = "0.3.0"
 
 

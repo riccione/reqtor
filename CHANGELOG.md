@@ -25,6 +25,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Explicit env var parameters: `base_url_env`, `token_env`, `auth_user_env`, `auth_pass_env`
   - Supports JSON-encoded headers via `{PREFIX}HEADERS`
   - Explicit values always override environment variables
+- Parametrized test helpers via `reqtor.parametrize`:
+  - `endpoints(*paths)` — parametrize over multiple endpoints
+  - `statuses(*codes)` — parametrize over multiple status codes
+  - `http_methods(*methods)` — parametrize over HTTP methods
+  - `api_endpoints(*tuples)` — parametrize over endpoint-status pairs
 
 ## [0.2.0] - 2026-06-18
 
