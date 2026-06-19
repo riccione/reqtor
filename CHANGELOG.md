@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-06-19
+
 ### Added
 
 - Configurable retry conditions via `retry_on` parameter:
@@ -99,7 +101,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Ruff linter/formatter configuration
 - Basic README
 
-[Unreleased]: https://github.com/riccione/reqtor/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/riccione/reqtor/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/riccione/reqtor/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/riccione/reqtor/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/riccione/reqtor/compare/v0.0.1...v0.1.0
 [0.0.1]: https://github.com/riccione/reqtor/releases/tag/v0.0.1
